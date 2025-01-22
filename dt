@@ -1,0 +1,24 @@
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+
+protected void checkRequiredDate(Errors errors, String dateAsString, String fieldName, String fieldNameDisplay) {
+    List<String> acceptedFormats = List.of("MM/dd/yyyy", "MM-dd-yyyy", "yyyy/MM/dd", "yyyy-MM-dd");
+
+    boolean validFormat = acceptedFormats.stream().anyMatch(format -> {
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(format);
+            LocalDate parsedDate = LocalDate.parse(dateAsString, formatter);
+
+            // Reformat and check equality
+            return dateAsString.equals(parsedDate.format(formatter));
+        } catch (DateTimeParseException ignored) {
+            return false; // Invalid format, continue checking
+        }
+    });
+
+    if (!validFormat) {
+        errors.rejectValue(fieldName, "error.validate.badDateFormat", new Object[]{fieldNameDisplay}, null);
+    }
+}
