@@ -1,6 +1,6 @@
 @RestController
 @RequestMapping("/loan")
-public class LoanSearchController {
+public class Controller {
 
     private final OpsService opsService;
 
