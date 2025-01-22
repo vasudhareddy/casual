@@ -1,1 +1,86 @@
+@RestController
+@RequestMapping("/loan")
+public class LoanSearchController {
+
+    private final OpsService opsService;
+
+    public LoanSearchController(OpsService opsService) {
+        this.opsService = opsService;
+    }
+
+    @PostMapping("/loanSearch")
+    public ResponseEntity<LoanSearchResultDto> searchByLoan(@RequestBody LoanSearchFormDto loanSearchFormDto) {
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+
+        try {
+            validateLoanSearchForm(loanSearchFormDto);
+
+            loanSearchFormDto.setFirstName(loanSearchFormDto.getFirstName().toUpperCase());
+            loanSearchFormDto.setLastName(loanSearchFormDto.getLastName().toUpperCase());
+
+            LoanSearchResultDto loanSearchResultDto;
+
+            if (loanSearchFormDto.isSearchTypeByLastNameSSN()) {
+                String[] searchParams = {
+                    loanSearchFormDto.getFirstName(),
+                    loanSearchFormDto.getLastName(),
+                    loanSearchFormDto.getSsn()
+                };
+
+                loanSearchResultDto = opsService.loanSearchViaLastNameSSN(searchParams, 0);
+            } else {
+                loanSearchResultDto = searchByLoanNumber(loanSearchFormDto);
+            }
+
+            logSearchInfo(stopWatch, true, loanSearchFormDto.getLoanNumber());
+            return ResponseEntity.ok(loanSearchResultDto);
+
+        } catch (Exception ex) {
+            logSearchInfo(stopWatch, false, null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new LoanSearchResultDto("Error occurred during loan search: " + ex.getMessage()));
+        }
+    }
+
+    private LoanSearchResultDto searchByLoanNumber(LoanSearchFormDto loanSearchFormDto) throws Exception {
+        LOG.info("Performing loan search for loan number: {}", loanSearchFormDto.getLoanNumber());
+
+        LoanSearchResultDto resultDto = opsService.loanSearchViaLoanNumber(loanSearchFormDto.getLoanNumber(), 0);
+        LoanSearchResultDto filteredResults = new LoanSearchResultDto();
+
+        for (Object result : resultDto.getResults()) {
+            LoanSearchItem item = (LoanSearchItem) result;
+            LOG.info("Loan found: {}/{}/{}", item.getClientNumber(), item.getLoanNumber(), item.getPropertyZipCode());
+
+            if (item.getLoanNumber().equals(loanSearchFormDto.getLoanNumber())) {
+                if (loanSearchFormDto.isPostalCodeRequired()) {
+                    if (item.getPropertyZipCode().equals(loanSearchFormDto.getPostalCode())) {
+                        filteredResults.addResultItem(item);
+                        LOG.info("Loan added to filtered results: {}/{}/{}", item.getClientNumber(), item.getLoanNumber(), item.getPropertyZipCode());
+                    }
+                } else {
+                    filteredResults.addResultItem(item);
+                }
+            }
+        }
+
+        if (!loanSearchFormDto.isPostalCodeRequired() && filteredResults.getResultCount() > 1) {
+            loanSearchFormDto.setPostalCodeRequired(true);
+        } else {
+            return filteredResults;
+        }
+
+        return resultDto;
+    }
+
+    private void validateLoanSearchForm(LoanSearchFormDto loanSearchFormDto) {
+        // Perform validation logic here
+    }
+
+    private void logSearchInfo(StopWatch stopWatch, boolean status, String loanNumber) {
+        stopWatch.stop();
+        LOG.info("Search status: {}, Loan Number: {}, Time Elapsed: {} ms", status, loanNumber, stopWatch.getTotalTimeMillis());
+    }
+}
 
