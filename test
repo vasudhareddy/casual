@@ -1,153 +1,164 @@
-import org.springframework.stereotype.Component;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.http.ResponseEntity;
-import jakarta.validation.Valid;
-import java.util.ArrayList;
+import java.text.CharacterIterator;
+import java.text.StringCharacterIterator;
+import java.util.Collection;
 import java.util.List;
+import java.util.StringTokenizer;
+import java.util.stream.Collectors;
 
-public class BaseOpsValidator {
+public class EmailUtil {
 
-    private static final Pattern VALID_NAME_PATTERN = Pattern.compile("^[a-zA-Z ']+$");
+    // Allowed characters for email validation
+    private static final String VALID_EMAIL_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-@";
 
-    public void validateOnlyStringLength(String attributeValue, int minLength, int maxLength, String fieldName, List<String> errors) {
-        if (attributeValue != null && attributeValue.length() < minLength) {
-            errors.add(fieldName + " must be at least " + minLength + " characters long.");
-        } else if (attributeValue != null && attributeValue.length() > maxLength) {
-            errors.add(fieldName + " must be at most " + maxLength + " characters long.");
-        }
+    /**
+     * Sends an HTML email to multiple recipients.
+     */
+    public static void sendHtml(Collection<String> recipients, String from, String subject, String body, String smtpServer, int deliveryAttempts) throws EmailException {
+        Email email = new Email(smtpServer)
+                .withSender(from)
+                .withAllRecipients(recipients)
+                .withSubject(subject)
+                .withHtmlMessageBody(body);
+        new EmailTransport(email, deliveryAttempts).sendWithoutBlocking();
     }
 
-    public void validateRequiredString(String attributeValue, int minLength, int maxLength, String fieldName, List<String> errors) {
-        if (attributeValue == null || attributeValue.length() < minLength) {
-            errors.add(fieldName + " is required and must be at least " + minLength + " characters long.");
-        } else if (attributeValue.length() > maxLength) {
-            errors.add(fieldName + " must be at most " + maxLength + " characters long.");
-        }
+    /**
+     * Sends a text email to a single recipient.
+     */
+    public static void sendText(String to, String from, String subject, String body, String smtpServer, int deliveryAttempts) throws EmailException {
+        Email email = new Email(smtpServer)
+                .withSender(from)
+                .withRecipient(to)
+                .withSubject(subject)
+                .withTextMessageBody(body);
+        new EmailTransport(email, deliveryAttempts).sendWithoutBlocking();
     }
 
-    public void validateRequiredStringForAlphaSpace(String attributeValue, String fieldName, List<String> errors) {
-        if (!VALID_NAME_PATTERN.matcher(attributeValue).matches()) {
-            errors.add(fieldName + " contains invalid characters. Only letters and spaces are allowed.");
-        }
+    /**
+     * Sends a text email to multiple recipients.
+     */
+    public static void sendText(Collection<String> recipients, String from, String subject, String body, String smtpServer, int deliveryAttempts) throws EmailException {
+        Email email = new Email(smtpServer)
+                .withSender(from)
+                .withAllRecipients(recipients)
+                .withSubject(subject)
+                .withTextMessageBody(body);
+        new EmailTransport(email, deliveryAttempts).sendWithoutBlocking();
     }
 
-    public void validateRequiredDate(String dateAsString, String fieldName, List<String> errors) {
-        try {
-            Date date = DateUtil.parseDate(dateAsString);
-            if (!(dateAsString.equals(DateUtil.formatDate(date, "MM/dd/yyyy")) ||
-                  dateAsString.equals(DateUtil.formatDate(date, "MM-dd-yyyy")) ||
-                  dateAsString.equals(DateUtil.formatDate(date, "yyyy/MM/dd")) ||
-                  dateAsString.equals(DateUtil.formatDate(date, "yyyy-MM-dd")))) {
-                errors.add(fieldName + " has an invalid date format.");
-            }
-        } catch (Exception t) {
-            errors.add(fieldName + " has an invalid date format.");
+    /**
+     * Validates an email address format.
+     */
+    public static String isValidEmailAddress(String emailAddress) throws FormatException {
+        if (emailAddress == null || emailAddress.isBlank()) {
+            throw new FormatException("EmailUtil", "isValidEmailAddress", "The email address is malformed.");
         }
+
+        validateAgainstCharacterList(emailAddress, VALID_EMAIL_CHARACTERS, "email address");
+
+        String[] parts = emailAddress.split("@");
+        if (parts.length != 2) {
+            throw new FormatException("EmailUtil", "isValidEmailAddress", "Invalid email address format.");
+        }
+
+        String domain = parts[1];
+        if (domain.startsWith(".") || domain.endsWith(".") || domain.contains("..")) {
+            throw new FormatException("EmailUtil", "isValidEmailAddress", "The domain part of the email address is invalid.");
+        }
+
+        return emailAddress;
     }
 
-    public void checkNameStringRequirements(String attributeValue, int minLength, int maxLength, String fieldName, List<String> errors) {
-        if (attributeValue == null || attributeValue.isBlank()) {
-            errors.add(fieldName + " is required.");
-        } else {
-            int alphaCount = 0;
-            for (char c : attributeValue.toCharArray()) {
-                if (Character.isAlphabetic(c)) {
-                    alphaCount++;
-                }
-            }
-
-            if (alphaCount < minLength) {
-                errors.add(fieldName + " must contain at least " + minLength + " alphabetic characters.");
-            } else if (attributeValue.length() > maxLength) {
-                errors.add(fieldName + " must not exceed " + maxLength + " characters.");
-            }
+    /**
+     * Validates a string against a list of allowed characters.
+     */
+    protected static String validateAgainstCharacterList(String string, String characters, String type) {
+        if (!string.chars().allMatch(c -> characters.indexOf(c) >= 0)) {
+            throw new IllegalArgumentException("Invalid character found in " + type);
         }
-    }
-
-    public void checkRequiredEmailAddress(String emailAddress, String fieldName, List<String> errors) {
-        try {
-            if (!EmailUtil.isValidEmailAddress(emailAddress)) {
-                errors.add(fieldName + " has an invalid email address.");
-            }
-        } catch (Exception e) {
-            errors.add(fieldName + " has an invalid email address.");
-        }
-    }
-
-    public void checkStartEndDates(Date startDate, Date endDate, String fieldName, List<String> errors) {
-        if (startDate != null && endDate != null) {
-            if (startDate.after(endDate) || startDate.equals(endDate)) {
-                errors.add(fieldName + " start date must be before the end date.");
-            }
-        }
-    }
-}
-
-@Component
-@Validated
-public class LoanSearchFormValidator {
-
-    private static final Pattern DIGIT_PATTERN = Pattern.compile("\\d+");
-
-    private final BaseOpsValidator baseOpsValidator;
-
-    public LoanSearchFormValidator(BaseOpsValidator baseOpsValidator) {
-        this.baseOpsValidator = baseOpsValidator;
-    }
-
-    public List<String> validate(@Valid LoanSearchForm loanSearchForm) {
-        List<String> errors = new ArrayList<>();
-
-        if (LoanSearchForm.isSearchTypeByLastNameSSN()) {
-            baseOpsValidator.validateRequiredString(loanSearchForm.getSsn(), 4, 30, "SSN", errors);
-            baseOpsValidator.validateRequiredStringForAlphaSpace(loanSearchForm.getFirstName(), "First Name", errors);
-            baseOpsValidator.validateRequiredStringForAlphaSpace(loanSearchForm.getLastName(), "Last Name", errors);
-            baseOpsValidator.checkNameStringRequirements(loanSearchForm.getFirstName(), 1, 30, "First Name", errors);
-            baseOpsValidator.checkNameStringRequirements(loanSearchForm.getLastName(), 1, 30, "Last Name", errors);
-            if (!DIGIT_PATTERN.matcher(loanSearchForm.getSsn()).matches()) {
-                errors.add("SSN must contain only digits.");
-            }
-        }
-
-        baseOpsValidator.validateOnlyStringLength(loanSearchForm.getLoanNumber(), 1, 10, "Loan Number", errors);
-
-        if (loanSearchForm.getLoanNumber() != null && !loanSearchForm.getLoanNumber().isEmpty()) {
-            if (!DIGIT_PATTERN.matcher(loanSearchForm.getLoanNumber()).matches()) {
-                errors.add("Loan Number must contain only digits.");
-            }
-        }
-
-        if (!loanSearchForm.getLoanNumber().equals(loanSearchForm.getPreviousLoanNumber()) && loanSearchForm.isPostalCodeRequired()) {
-            baseOpsValidator.validateOnlyStringLength(loanSearchForm.getPostalCode(), 5, 5, "Postal Code", errors);
-        } else {
-            loanSearchForm.setPostalCodeRequired(false);
-        }
-
-        baseOpsValidator.checkRequiredStringContainsIntegersOnly(loanSearchForm.getPostalCode(), "Postal Code", errors);
-
-        loanSearchForm.setPreviousLoanNumber(loanSearchForm.getLoanNumber());
-
-        return errors;
+        return string;
     }
 }
 
-@RestController
-@RequestMapping("/loan")
-public class LoanSearchController {
+/**
+ * Updated Email class with a fluent API using modern Java practices.
+ */
+class Email {
+    private final String smtpServer;
+    private String sender;
+    private Collection<String> recipients;
+    private String subject;
+    private String body;
+    private boolean isHtml;
 
-    private final LoanSearchFormValidator loanSearchFormValidator;
-
-    public LoanSearchController(LoanSearchFormValidator loanSearchFormValidator) {
-        this.loanSearchFormValidator = loanSearchFormValidator;
+    public Email(String smtpServer) {
+        this.smtpServer = smtpServer;
     }
 
-    @PostMapping("/loanSearch")
-    public ResponseEntity<?> searchByLoan(@Valid @RequestBody LoanSearchForm loanSearchForm) {
-        List<String> errors = loanSearchFormValidator.validate(loanSearchForm);
-        if (!errors.isEmpty()) {
-            return ResponseEntity.badRequest().body(errors);
-        }
-        return ResponseEntity.ok("Validation successful.");
+    public Email withSender(String sender) {
+        this.sender = sender;
+        return this;
+    }
+
+    public Email withRecipient(String recipient) {
+        this.recipients = List.of(recipient);
+        return this;
+    }
+
+    public Email withAllRecipients(Collection<String> recipients) {
+        this.recipients = recipients;
+        return this;
+    }
+
+    public Email withSubject(String subject) {
+        this.subject = subject;
+        return this;
+    }
+
+    public Email withTextMessageBody(String body) {
+        this.body = body;
+        this.isHtml = false;
+        return this;
+    }
+
+    public Email withHtmlMessageBody(String body) {
+        this.body = body;
+        this.isHtml = true;
+        return this;
+    }
+}
+
+/**
+ * Dummy EmailTransport class for sending emails.
+ */
+class EmailTransport {
+    private final Email email;
+    private final int deliveryAttempts;
+
+    public EmailTransport(Email email, int deliveryAttempts) {
+        this.email = email;
+        this.deliveryAttempts = deliveryAttempts;
+    }
+
+    public void sendWithoutBlocking() {
+        // Implementation for sending email asynchronously
+    }
+}
+
+/**
+ * Custom exception for email-related errors.
+ */
+class EmailException extends Exception {
+    public EmailException(String message) {
+        super(message);
+    }
+}
+
+/**
+ * Custom exception for format validation errors.
+ */
+class FormatException extends RuntimeException {
+    public FormatException(String className, String methodName, String message) {
+        super("[%s.%s] %s".formatted(className, methodName, message));
     }
 }
