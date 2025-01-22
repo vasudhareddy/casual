@@ -1,164 +1,133 @@
-import java.text.CharacterIterator;
-import java.text.StringCharacterIterator;
-import java.util.Collection;
-import java.util.List;
-import java.util.StringTokenizer;
-import java.util.stream.Collectors;
+import java.util.Date;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
-public class EmailUtil {
+public class EmailTransport implements Runnable {
+    private final Email email;
+    private final int maxDeliveryAttempts;
 
-    // Allowed characters for email validation
-    private static final String VALID_EMAIL_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-@";
+    // Constructor
+    public EmailTransport(Email email) {
+        this(email, 1);
+    }
 
-    /**
-     * Sends an HTML email to multiple recipients.
-     */
-    public static void sendHtml(Collection<String> recipients, String from, String subject, String body, String smtpServer, int deliveryAttempts) throws EmailException {
-        Email email = new Email(smtpServer)
-                .withSender(from)
-                .withAllRecipients(recipients)
-                .withSubject(subject)
-                .withHtmlMessageBody(body);
-        new EmailTransport(email, deliveryAttempts).sendWithoutBlocking();
+    public EmailTransport(Email email, int attempts) {
+        this.email = email;
+        this.maxDeliveryAttempts = attempts;
     }
 
     /**
-     * Sends a text email to a single recipient.
+     * Attempts to send the email with retry logic using Stream.iterate.
      */
-    public static void sendText(String to, String from, String subject, String body, String smtpServer, int deliveryAttempts) throws EmailException {
-        Email email = new Email(smtpServer)
-                .withSender(from)
-                .withRecipient(to)
-                .withSubject(subject)
-                .withTextMessageBody(body);
-        new EmailTransport(email, deliveryAttempts).sendWithoutBlocking();
+    public void send() throws EmailException {
+        Predicate<Integer> shouldRetry = attempt -> attempt < maxDeliveryAttempts;
+
+        // Set the sent date for the email
+        this.email.getMessage().setSentDate(new Date());
+
+        boolean delivered = Stream.iterate(1, attempt -> attempt + 1) // Start from 1, increment by 1
+                .takeWhile(shouldRetry) // Continue while the retry condition is met
+                .anyMatch(attempt -> {
+                    try {
+                        if (attempt > 1) {
+                            logDebug("Delivery retry: attempt " + attempt + " of " + maxDeliveryAttempts +
+                                    " to deliver message with subject: " + email.getMessage().getSubject());
+                        }
+
+                        // Simulate sending email
+                        Transport.send(email.getMessage());
+                        return true; // Successfully delivered
+                    } catch (SendFailedException ex) {
+                        logDebug("Send failed on attempt " + attempt + ": " + ex.getMessage());
+                        return false; // Retry
+                    }
+                });
+
+        if (!delivered) {
+            String errorMessage = "Message delivery failed, tried " + maxDeliveryAttempts + " times; for message subject: "
+                    + email.getMessage().getSubject();
+            logError(errorMessage);
+            throw new EmailException(this, "send()", errorMessage);
+        }
     }
 
-    /**
-     * Sends a text email to multiple recipients.
-     */
-    public static void sendText(Collection<String> recipients, String from, String subject, String body, String smtpServer, int deliveryAttempts) throws EmailException {
-        Email email = new Email(smtpServer)
-                .withSender(from)
-                .withAllRecipients(recipients)
-                .withSubject(subject)
-                .withTextMessageBody(body);
-        new EmailTransport(email, deliveryAttempts).sendWithoutBlocking();
+    @Override
+    public void run() {
+        try {
+            this.send();
+        } catch (EmailException ex) {
+            logWarning("Failed to send email in runnable context: " + ex.getMessage());
+        }
     }
 
-    /**
-     * Validates an email address format.
-     */
-    public static String isValidEmailAddress(String emailAddress) throws FormatException {
-        if (emailAddress == null || emailAddress.isBlank()) {
-            throw new FormatException("EmailUtil", "isValidEmailAddress", "The email address is malformed.");
-        }
-
-        validateAgainstCharacterList(emailAddress, VALID_EMAIL_CHARACTERS, "email address");
-
-        String[] parts = emailAddress.split("@");
-        if (parts.length != 2) {
-            throw new FormatException("EmailUtil", "isValidEmailAddress", "Invalid email address format.");
-        }
-
-        String domain = parts[1];
-        if (domain.startsWith(".") || domain.endsWith(".") || domain.contains("..")) {
-            throw new FormatException("EmailUtil", "isValidEmailAddress", "The domain part of the email address is invalid.");
-        }
-
-        return emailAddress;
+    // Logging methods for demonstration purposes
+    private void logDebug(String message) {
+        System.out.println("DEBUG: " + message);
     }
 
-    /**
-     * Validates a string against a list of allowed characters.
-     */
-    protected static String validateAgainstCharacterList(String string, String characters, String type) {
-        if (!string.chars().allMatch(c -> characters.indexOf(c) >= 0)) {
-            throw new IllegalArgumentException("Invalid character found in " + type);
-        }
-        return string;
+    private void logError(String message) {
+        System.err.println("ERROR: " + message);
+    }
+
+    private void logWarning(String message) {
+        System.err.println("WARNING: " + message);
     }
 }
 
 /**
- * Updated Email class with a fluent API using modern Java practices.
+ * Placeholder classes for Email, Transport, SendFailedException, and EmailException.
+ * Replace these with your actual implementations.
  */
 class Email {
-    private final String smtpServer;
-    private String sender;
-    private Collection<String> recipients;
+    private final Message message;
+
+    public Email() {
+        this.message = new Message();
+    }
+
+    public Message getMessage() {
+        return message;
+    }
+}
+
+class Message {
     private String subject;
-    private String body;
-    private boolean isHtml;
+    private Date sentDate;
 
-    public Email(String smtpServer) {
-        this.smtpServer = smtpServer;
+    public String getSubject() {
+        return subject;
     }
 
-    public Email withSender(String sender) {
-        this.sender = sender;
-        return this;
-    }
-
-    public Email withRecipient(String recipient) {
-        this.recipients = List.of(recipient);
-        return this;
-    }
-
-    public Email withAllRecipients(Collection<String> recipients) {
-        this.recipients = recipients;
-        return this;
-    }
-
-    public Email withSubject(String subject) {
+    public void setSubject(String subject) {
         this.subject = subject;
-        return this;
     }
 
-    public Email withTextMessageBody(String body) {
-        this.body = body;
-        this.isHtml = false;
-        return this;
+    public Date getSentDate() {
+        return sentDate;
     }
 
-    public Email withHtmlMessageBody(String body) {
-        this.body = body;
-        this.isHtml = true;
-        return this;
+    public void setSentDate(Date sentDate) {
+        this.sentDate = sentDate;
     }
 }
 
-/**
- * Dummy EmailTransport class for sending emails.
- */
-class EmailTransport {
-    private final Email email;
-    private final int deliveryAttempts;
-
-    public EmailTransport(Email email, int deliveryAttempts) {
-        this.email = email;
-        this.deliveryAttempts = deliveryAttempts;
-    }
-
-    public void sendWithoutBlocking() {
-        // Implementation for sending email asynchronously
+class Transport {
+    public static void send(Message message) throws SendFailedException {
+        // Simulate sending the message
+        if (Math.random() > 0.7) { // Simulate a 30% chance of failure
+            throw new SendFailedException("Simulated send failure");
+        }
     }
 }
 
-/**
- * Custom exception for email-related errors.
- */
-class EmailException extends Exception {
-    public EmailException(String message) {
+class SendFailedException extends Exception {
+    public SendFailedException(String message) {
         super(message);
     }
 }
 
-/**
- * Custom exception for format validation errors.
- */
-class FormatException extends RuntimeException {
-    public FormatException(String className, String methodName, String message) {
-        super("[%s.%s] %s".formatted(className, methodName, message));
+class EmailException extends Exception {
+    public EmailException(Object source, String method, String message) {
+        super("Error in " + source.getClass().getSimpleName() + "." + method + ": " + message);
     }
 }
