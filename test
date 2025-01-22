@@ -1,133 +1,85 @@
-import java.util.Date;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
+@RestController
+@RequestMapping("/loan")
+public class LoanSearchController {
 
-public class EmailTransport implements Runnable {
-    private final Email email;
-    private final int maxDeliveryAttempts;
+    private final OpsService opsService;
 
-    // Constructor
-    public EmailTransport(Email email) {
-        this(email, 1);
+    public LoanSearchController(OpsService opsService) {
+        this.opsService = opsService;
     }
 
-    public EmailTransport(Email email, int attempts) {
-        this.email = email;
-        this.maxDeliveryAttempts = attempts;
-    }
+    @PostMapping("/loanSearch")
+    public ResponseEntity<LoanSearchResultDto> searchByLoan(@RequestBody LoanSearchFormDto loanSearchFormDto) {
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
 
-    /**
-     * Attempts to send the email with retry logic using Stream.iterate.
-     */
-    public void send() throws EmailException {
-        Predicate<Integer> shouldRetry = attempt -> attempt < maxDeliveryAttempts;
-
-        // Set the sent date for the email
-        this.email.getMessage().setSentDate(new Date());
-
-        boolean delivered = Stream.iterate(1, attempt -> attempt + 1) // Start from 1, increment by 1
-                .takeWhile(shouldRetry) // Continue while the retry condition is met
-                .anyMatch(attempt -> {
-                    try {
-                        if (attempt > 1) {
-                            logDebug("Delivery retry: attempt " + attempt + " of " + maxDeliveryAttempts +
-                                    " to deliver message with subject: " + email.getMessage().getSubject());
-                        }
-
-                        // Simulate sending email
-                        Transport.send(email.getMessage());
-                        return true; // Successfully delivered
-                    } catch (SendFailedException ex) {
-                        logDebug("Send failed on attempt " + attempt + ": " + ex.getMessage());
-                        return false; // Retry
-                    }
-                });
-
-        if (!delivered) {
-            String errorMessage = "Message delivery failed, tried " + maxDeliveryAttempts + " times; for message subject: "
-                    + email.getMessage().getSubject();
-            logError(errorMessage);
-            throw new EmailException(this, "send()", errorMessage);
-        }
-    }
-
-    @Override
-    public void run() {
         try {
-            this.send();
-        } catch (EmailException ex) {
-            logWarning("Failed to send email in runnable context: " + ex.getMessage());
+            validateLoanSearchForm(loanSearchFormDto);
+
+            loanSearchFormDto.setFirstName(loanSearchFormDto.getFirstName().toUpperCase());
+            loanSearchFormDto.setLastName(loanSearchFormDto.getLastName().toUpperCase());
+
+            LoanSearchResultDto loanSearchResultDto;
+
+            if (loanSearchFormDto.isSearchTypeByLastNameSSN()) {
+                String[] searchParams = {
+                    loanSearchFormDto.getFirstName(),
+                    loanSearchFormDto.getLastName(),
+                    loanSearchFormDto.getSsn()
+                };
+
+                loanSearchResultDto = opsService.loanSearchViaLastNameSSN(searchParams, 0);
+            } else {
+                loanSearchResultDto = searchByLoanNumber(loanSearchFormDto);
+            }
+
+            logSearchInfo(stopWatch, true, loanSearchFormDto.getLoanNumber());
+            return ResponseEntity.ok(loanSearchResultDto);
+
+        } catch (Exception ex) {
+            logSearchInfo(stopWatch, false, null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new LoanSearchResultDto("Error occurred during loan search: " + ex.getMessage()));
         }
     }
 
-    // Logging methods for demonstration purposes
-    private void logDebug(String message) {
-        System.out.println("DEBUG: " + message);
-    }
+    private LoanSearchResultDto searchByLoanNumber(LoanSearchFormDto loanSearchFormDto) throws Exception {
+        LOG.info("Performing loan search for loan number: {}", loanSearchFormDto.getLoanNumber());
 
-    private void logError(String message) {
-        System.err.println("ERROR: " + message);
-    }
+        LoanSearchResultDto resultDto = opsService.loanSearchViaLoanNumber(loanSearchFormDto.getLoanNumber(), 0);
+        LoanSearchResultDto filteredResults = new LoanSearchResultDto();
 
-    private void logWarning(String message) {
-        System.err.println("WARNING: " + message);
-    }
-}
+        for (Object result : resultDto.getResults()) {
+            LoanSearchItem item = (LoanSearchItem) result;
+            LOG.info("Loan found: {}/{}/{}", item.getClientNumber(), item.getLoanNumber(), item.getPropertyZipCode());
 
-/**
- * Placeholder classes for Email, Transport, SendFailedException, and EmailException.
- * Replace these with your actual implementations.
- */
-class Email {
-    private final Message message;
-
-    public Email() {
-        this.message = new Message();
-    }
-
-    public Message getMessage() {
-        return message;
-    }
-}
-
-class Message {
-    private String subject;
-    private Date sentDate;
-
-    public String getSubject() {
-        return subject;
-    }
-
-    public void setSubject(String subject) {
-        this.subject = subject;
-    }
-
-    public Date getSentDate() {
-        return sentDate;
-    }
-
-    public void setSentDate(Date sentDate) {
-        this.sentDate = sentDate;
-    }
-}
-
-class Transport {
-    public static void send(Message message) throws SendFailedException {
-        // Simulate sending the message
-        if (Math.random() > 0.7) { // Simulate a 30% chance of failure
-            throw new SendFailedException("Simulated send failure");
+            if (item.getLoanNumber().equals(loanSearchFormDto.getLoanNumber())) {
+                if (loanSearchFormDto.isPostalCodeRequired()) {
+                    if (item.getPropertyZipCode().equals(loanSearchFormDto.getPostalCode())) {
+                        filteredResults.addResultItem(item);
+                        LOG.info("Loan added to filtered results: {}/{}/{}", item.getClientNumber(), item.getLoanNumber(), item.getPropertyZipCode());
+                    }
+                } else {
+                    filteredResults.addResultItem(item);
+                }
+            }
         }
-    }
-}
 
-class SendFailedException extends Exception {
-    public SendFailedException(String message) {
-        super(message);
-    }
-}
+        if (!loanSearchFormDto.isPostalCodeRequired() && filteredResults.getResultCount() > 1) {
+            loanSearchFormDto.setPostalCodeRequired(true);
+        } else {
+            return filteredResults;
+        }
 
-class EmailException extends Exception {
-    public EmailException(Object source, String method, String message) {
-        super("Error in " + source.getClass().getSimpleName() + "." + method + ": " + message);
+        return resultDto;
+    }
+
+    private void validateLoanSearchForm(LoanSearchFormDto loanSearchFormDto) {
+        // Perform validation logic here
+    }
+
+    private void logSearchInfo(StopWatch stopWatch, boolean status, String loanNumber) {
+        stopWatch.stop();
+        LOG.info("Search status: {}, Loan Number: {}, Time Elapsed: {} ms", status, loanNumber, stopWatch.getTotalTimeMillis());
     }
 }
