@@ -1,51 +1,43 @@
-plugins {
-    id 'java'
-    id 'io.mateo.cxf-codegen' version '2.4.1'
-}
+// Elastic Starter
+implementation "com.wellsfargo.ebssh.orchestra:framework-elastic-starter"
 
-group = 'com.example'
-version = '1.0.0-SNAPSHOT'
+// CXF Codegen Dependencies (Latest Versions)
+implementation "jakarta.xml.ws:jakarta.xml.ws-api:4.0.0"         // Latest Jakarta XML Web Services API
+implementation "jakarta.annotation:jakarta.annotation-api:2.1.1" // Latest Jakarta Annotations API
+implementation "jakarta.xml.bind:jakarta.xml.bind-api:4.0.0"     // Latest Jakarta XML Binding API
+implementation "org.glassfish.jaxb:jaxb-runtime:4.0.2"           // Latest JAXB Runtime for Jakarta
+implementation "org.apache.cxf:cxf-core:4.0.1"                  // Latest Apache CXF Core
+implementation "org.apache.cxf:cxf-rt-frontend-jaxws:4.0.1"     // CXF JAX-WS Frontend
+implementation "org.apache.cxf:cxf-rt-transports-http:4.0.1"    // CXF HTTP Transport
 
-repositories {
-    mavenCentral()
-}
+// Test and Annotation Dependencies
+testImplementation "org.springframework.boot:spring-boot-starter-test"
+compileOnly "org.projectlombok:lombok:1.18.30"                  // Latest Lombok
+annotationProcessor "org.projectlombok:lombok:1.18.30"
 
-dependencies {
-    // Add dependencies for generated classes
-    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
-    implementation 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
-    implementation 'org.apache.cxf:cxf-core:4.0.0'
-    implementation 'org.apache.cxf:cxf-rt-frontend-jaxws:4.0.0'
-    implementation 'org.apache.cxf:cxf-rt-transports-http:4.0.0'
-}
-
-cxfCodegen {
-    wsdl2java {
-        // Define a task to generate stubs from a WSDL file
-        create("generateClient") {
-            wsdl = file("src/main/resources/your-service.wsdl") // Path to your WSDL file
-            generatedSourceDir = file("$buildDir/generated-sources/wsdl2java")
-            generatedClassesDir = file("$buildDir/generated-classes")
-            // Add options as needed
-            options = [
-                "-p", "com.example.generated", // Specify the package name
-                "-verbose",                   // Enable verbose output
-                "-autoNameResolution"         // Resolve name conflicts automatically
-            ]
-        }
+// Task for CXF Codegen
+tasks.register("wsdlLoanSearch", Wsdl2Java) {
+    toolOptions {
+        wsdl.set(file("${projectDir}/src/main/resources/wsdl/LoanSearchV${rootProject.properties['wsdl.loansearch.version']}.wsdl"))
+        packageNames.set([rootProject.properties['wsdl.loansearch.packagename']])
     }
 }
 
-// Ensure the generated code is added to the compile classpath
-sourceSets {
-    main {
-        java {
-            srcDir("$buildDir/generated-sources/wsdl2java")
-        }
+tasks.withType(Wsdl2Java).configureEach {
+    toolOptions {
+        outputDir.set(file("${buildDir}/generated/sources/wsdl/"))
+        bindingFiles.add(layout.projectDirectory.file("src/main/resources/wsdl/bindings.xml").asFile.absolutePath)
     }
 }
 
-// Make the `compileJava` task depend on the code generation task
-tasks.named("compileJava") {
-    dependsOn("cxfCodegenWsdl2javaGenerateClient")
+// Ensure that compileJava depends on the WSDL task
+compileJava.dependsOn wsdlLoanSearch
+
+// Maven Publication (Optional)
+publishing {
+    publications {
+        bootJava(MavenPublication) {
+            from components.java
+        }
+    }
 }
