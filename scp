@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'io.mateo.cxf-codegen' version '2.4.1'
+}
+
+group = 'com.example'
+version = '1.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Add dependencies for generated classes
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
+    implementation 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
+    implementation 'org.apache.cxf:cxf-core:4.0.0'
+    implementation 'org.apache.cxf:cxf-rt-frontend-jaxws:4.0.0'
+    implementation 'org.apache.cxf:cxf-rt-transports-http:4.0.0'
+}
+
+cxfCodegen {
+    wsdl2java {
+        // Define a task to generate stubs from a WSDL file
+        create("generateClient") {
+            wsdl = file("src/main/resources/your-service.wsdl") // Path to your WSDL file
+            generatedSourceDir = file("$buildDir/generated-sources/wsdl2java")
+            generatedClassesDir = file("$buildDir/generated-classes")
+            // Add options as needed
+            options = [
+                "-p", "com.example.generated", // Specify the package name
+                "-verbose",                   // Enable verbose output
+                "-autoNameResolution"         // Resolve name conflicts automatically
+            ]
+        }
+    }
+}
+
+// Ensure the generated code is added to the compile classpath
+sourceSets {
+    main {
+        java {
+            srcDir("$buildDir/generated-sources/wsdl2java")
+        }
+    }
+}
+
+// Make the `compileJava` task depend on the code generation task
+tasks.named("compileJava") {
+    dependsOn("cxfCodegenWsdl2javaGenerateClient")
+}
