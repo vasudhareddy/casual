@@ -1,43 +1,46 @@
-// Elastic Starter
-implementation "com.wellsfargo.ebssh.orchestra:framework-elastic-starter"
-
-// CXF Codegen Dependencies (Latest Versions)
-implementation "jakarta.xml.ws:jakarta.xml.ws-api:4.0.0"         // Latest Jakarta XML Web Services API
-implementation "jakarta.annotation:jakarta.annotation-api:2.1.1" // Latest Jakarta Annotations API
-implementation "jakarta.xml.bind:jakarta.xml.bind-api:4.0.0"     // Latest Jakarta XML Binding API
-implementation "org.glassfish.jaxb:jaxb-runtime:4.0.2"           // Latest JAXB Runtime for Jakarta
-implementation "org.apache.cxf:cxf-core:4.0.1"                  // Latest Apache CXF Core
-implementation "org.apache.cxf:cxf-rt-frontend-jaxws:4.0.1"     // CXF JAX-WS Frontend
-implementation "org.apache.cxf:cxf-rt-transports-http:4.0.1"    // CXF HTTP Transport
-
-// Test and Annotation Dependencies
-testImplementation "org.springframework.boot:spring-boot-starter-test"
-compileOnly "org.projectlombok:lombok:1.18.30"                  // Latest Lombok
-annotationProcessor "org.projectlombok:lombok:1.18.30"
-
-// Task for CXF Codegen
-tasks.register("wsdlLoanSearch", Wsdl2Java) {
-    toolOptions {
-        wsdl.set(file("${projectDir}/src/main/resources/wsdl/LoanSearchV${rootProject.properties['wsdl.loansearch.version']}.wsdl"))
-        packageNames.set([rootProject.properties['wsdl.loansearch.packagename']])
-    }
+plugins {
+    id 'java'
 }
 
-tasks.withType(Wsdl2Java).configureEach {
-    toolOptions {
-        outputDir.set(file("${buildDir}/generated/sources/wsdl/"))
-        bindingFiles.add(layout.projectDirectory.file("src/main/resources/wsdl/bindings.xml").asFile.absolutePath)
-    }
+group = 'com.example'
+version = '1.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
 }
 
-// Ensure that compileJava depends on the WSDL task
-compileJava.dependsOn wsdlLoanSearch
+dependencies {
+    // Specify the exact versions of your dependencies
+    implementation 'javax.xml.ws:javax.xml.ws-api:2.3.1'
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-impl:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-core:2.3.1'
+    implementation 'jakarta.xml.ws:jakarta.xml.ws-api:4.0.0'
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
+    implementation 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
+    implementation 'org.apache.cxf:cxf-core:4.0.0'
+    implementation 'org.apache.cxf:cxf-rt-frontend-jaxws:4.0.0'
+    implementation 'org.apache.cxf:cxf-rt-transports-http:4.0.0'
+    implementation 'org.slf4j:slf4j-simple:1.7.36'
+}
 
-// Maven Publication (Optional)
-publishing {
-    publications {
-        bootJava(MavenPublication) {
-            from components.java
-        }
+// Enforce specific versions and prevent transitive overrides
+configurations.all {
+    resolutionStrategy {
+        // Force specific versions for the dependencies
+        force 'javax.xml.ws:javax.xml.ws-api:2.3.1'
+        force 'javax.xml.bind:jaxb-api:2.3.1'
+        force 'com.sun.xml.bind:jaxb-impl:2.3.1'
+        force 'com.sun.xml.bind:jaxb-core:2.3.1'
+        force 'jakarta.xml.ws:jakarta.xml.ws-api:4.0.0'
+        force 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
+        force 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
+        force 'org.apache.cxf:cxf-core:4.0.0'
+        force 'org.apache.cxf:cxf-rt-frontend-jaxws:4.0.0'
+        force 'org.apache.cxf:cxf-rt-transports-http:4.0.0'
+        force 'org.slf4j:slf4j-simple:1.7.36'
+
+        // Fail the build if a dependency conflicts with these versions
+        failOnVersionConflict()
     }
 }
