@@ -1,0 +1,17 @@
+dependencies {
+    // Legacy javax.xml.ws for code generation
+    implementation 'javax.xml.ws:javax.xml.ws-api:2.3.1'
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-impl:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-core:2.3.1'
+
+    // SLF4J binding to resolve logger issues
+    implementation 'org.slf4j:slf4j-simple:1.7.36'
+
+    // Jakarta dependencies for runtime (your original configuration)
+    implementation 'jakarta.xml.ws:jakarta.xml.ws-api:4.0.0' {
+        exclude group: "javax.xml.ws", module: "javax.xml.ws-api"
+    }
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
+    implementation 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
+}
