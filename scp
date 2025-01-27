@@ -10,37 +10,75 @@ repositories {
 }
 
 dependencies {
-    // Specify the exact versions of your dependencies
-    implementation 'javax.xml.ws:javax.xml.ws-api:2.3.1'
-    implementation 'javax.xml.bind:jaxb-api:2.3.1'
-    implementation 'com.sun.xml.bind:jaxb-impl:2.3.1'
-    implementation 'com.sun.xml.bind:jaxb-core:2.3.1'
-    implementation 'jakarta.xml.ws:jakarta.xml.ws-api:4.0.0'
-    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
-    implementation 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
-    implementation 'org.apache.cxf:cxf-core:4.0.0'
-    implementation 'org.apache.cxf:cxf-rt-frontend-jaxws:4.0.0'
-    implementation 'org.apache.cxf:cxf-rt-transports-http:4.0.0'
-    implementation 'org.slf4j:slf4j-simple:1.7.36'
-}
-
-// Enforce specific versions and prevent transitive overrides
-configurations.all {
-    resolutionStrategy {
-        // Force specific versions for the dependencies
-        force 'javax.xml.ws:javax.xml.ws-api:2.3.1'
-        force 'javax.xml.bind:jaxb-api:2.3.1'
-        force 'com.sun.xml.bind:jaxb-impl:2.3.1'
-        force 'com.sun.xml.bind:jaxb-core:2.3.1'
-        force 'jakarta.xml.ws:jakarta.xml.ws-api:4.0.0'
-        force 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
-        force 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
-        force 'org.apache.cxf:cxf-core:4.0.0'
-        force 'org.apache.cxf:cxf-rt-frontend-jaxws:4.0.0'
-        force 'org.apache.cxf:cxf-rt-transports-http:4.0.0'
-        force 'org.slf4j:slf4j-simple:1.7.36'
-
-        // Fail the build if a dependency conflicts with these versions
-        failOnVersionConflict()
+    // Define your dependencies without versions
+    implementation 'javax.xml.ws:javax.xml.ws-api'
+    implementation 'javax.xml.bind:jaxb-api'
+    implementation 'com.sun.xml.bind:jaxb-impl'
+    implementation 'com.sun.xml.bind:jaxb-core'
+    implementation 'jakarta.xml.ws:jakarta.xml.ws-api'
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api'
+    implementation 'org.glassfish.jaxb:jaxb-runtime'
+    implementation 'org.apache.cxf:cxf-core'
+    implementation 'org.apache.cxf:cxf-rt-frontend-jaxws'
+    implementation 'org.apache.cxf:cxf-rt-transports-http'
+    implementation 'org.slf4j:slf4j-simple'
+    
+    // Declare constraints to enforce specific versions
+    constraints {
+        implementation('javax.xml.ws:javax.xml.ws-api') {
+            version {
+                strictly '2.3.1'
+            }
+        }
+        implementation('javax.xml.bind:jaxb-api') {
+            version {
+                strictly '2.3.1'
+            }
+        }
+        implementation('com.sun.xml.bind:jaxb-impl') {
+            version {
+                strictly '2.3.1'
+            }
+        }
+        implementation('com.sun.xml.bind:jaxb-core') {
+            version {
+                strictly '2.3.1'
+            }
+        }
+        implementation('jakarta.xml.ws:jakarta.xml.ws-api') {
+            version {
+                strictly '4.0.0'
+            }
+        }
+        implementation('jakarta.xml.bind:jakarta.xml.bind-api') {
+            version {
+                strictly '3.0.1'
+            }
+        }
+        implementation('org.glassfish.jaxb:jaxb-runtime') {
+            version {
+                strictly '3.0.1'
+            }
+        }
+        implementation('org.apache.cxf:cxf-core') {
+            version {
+                strictly '4.0.0'
+            }
+        }
+        implementation('org.apache.cxf:cxf-rt-frontend-jaxws') {
+            version {
+                strictly '4.0.0'
+            }
+        }
+        implementation('org.apache.cxf:cxf-rt-transports-http') {
+            version {
+                strictly '4.0.0'
+            }
+        }
+        implementation('org.slf4j:slf4j-simple') {
+            version {
+                strictly '1.7.36'
+            }
+        }
     }
 }
