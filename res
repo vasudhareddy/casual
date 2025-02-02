@@ -7,7 +7,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.apache.cxf:cxf-tools-wsdlto-core:3.5.6' // Ensure compatibility with javax
+    implementation 'javax.xml.bind:jaxb-api:2.3.1' // JAXB API
+    implementation 'org.glassfish.jaxb:jaxb-runtime:2.3.5' // JAXB Runtime (implementation)
+    implementation 'org.apache.cxf:cxf-tools-wsdlto-core:3.5.6' // CXF tools
     implementation 'org.apache.cxf:cxf-tools-wsdlto-databinding-jaxb:3.5.6'
     implementation 'org.apache.cxf:cxf-tools-wsdlto-frontend-jaxws:3.5.6'
 }
