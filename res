@@ -1,19 +1,15 @@
-package com.example.demo.dto;
+dependencies {
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-core:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-impl:2.3.1'
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-public record ApiResponse<T>(
-        LocalDateTime timestamp,
-        String message,
-        T data,
-        List<String> errors
-) {
-    public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(LocalDateTime.now(), "Success", data, null);
-    }
-
-    public static <T> ApiResponse<T> error(String message, List<String> errors) {
-        return new ApiResponse<>(LocalDateTime.now(), message, null, errors);
+    configurations.all {
+        resolutionStrategy {
+            eachDependency { details ->
+                if (details.requested.group == 'com.sun.xml.bind' && details.requested.name == 'jaxb-core') {
+                    details.useVersion '2.3.1'
+                }
+            }
+        }
     }
 }
