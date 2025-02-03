@@ -1,31 +1,28 @@
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
 import org.springframework.context.annotation.Bean;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 
-@Component
+import javax.annotation.PostConstruct;
+import java.util.HashMap;
+import java.util.Map;
+
+@Configuration
 public class JaxbConfig {
 
-    @Bean
-    public Marshaller marshaller() throws JAXBException {
-        // Create JAXBContext for the required class (replace YourClass.class with your JAXB-generated class)
-        JAXBContext context = JAXBContext.newInstance(YourClass.class);
-
-        // Create the Marshaller (for converting Java objects to XML)
-        Marshaller marshaller = context.createMarshaller();
-        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);  // Optional: pretty print the XML
-        return marshaller;
+    @PostConstruct
+    private void setup() {
+        // Custom setup logic if necessary
     }
 
     @Bean
-    public Unmarshaller unmarshaller() throws JAXBException {
-        // Create JAXBContext for the required class (replace YourClass.class with your JAXB-generated class)
-        JAXBContext context = JAXBContext.newInstance(YourClass.class);
+    public Jaxb2Marshaller marshaller() {
+        Jaxb2Marshaller marshaller = new Jaxb2Marshaller();
+        marshaller.setContextPath("com.fnmis.services.services_common.loansearch._3");
 
-        // Create the Unmarshaller (for converting XML to Java objects)
-        Unmarshaller unmarshaller = context.createUnmarshaller();
-        return unmarshaller;
+        Map<String, Object> map = new HashMap<>();
+        map.put(Jaxb2Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        marshaller.setMarshallerProperties(map);
+        
+        return marshaller;
     }
 }
