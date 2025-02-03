@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.3.7'
     id 'io.spring.dependency-management' version '1.1.5'
-    id 'com.github.bjornvester.wsdl2java' version '2.1.0'
+    id 'no.nils.wsdl2java' version '0.12' // Updated plugin
 }
 
 group = 'com.example'
@@ -13,16 +13,17 @@ repositories {
     mavenCentral()
 }
 
-// Configure JAXB generation
 wsdl2java {
-    generatedSourcesDir = file("${project.buildDir}/generated-sources/jaxb")
-    wsdlDir = file("${project.projectDir}/src/main/resources/wsdl")
+    // New configuration format for Gradle 9
     wsdlsToGenerate = [
-        ['-XautoNameResolution', '-B-Xequals', '-B-XhashCode', "${project.projectDir}/src/main/resources/wsdl/your-service.wsdl"]
+        ['-autoNameResolution', '-B-Xequals', '-B-XhashCode', 
+         "$projectDir/src/main/resources/wsdl/your-service.wsdl".toString()]
     ]
+    generatedWsdlDir = file("${project.buildDir}/generated-sources/jaxb")
+    wsdlDir = file("$projectDir/src/main/resources/wsdl")
+    cxfVersion = "4.0.3" // CXF version compatible with javax
 }
 
-// Add generated sources to main source set
 sourceSets {
     main {
         java {
@@ -32,23 +33,21 @@ sourceSets {
 }
 
 dependencies {
-    // Spring Boot Starter
+    // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
-
-    // JAXB dependencies (javax.xml.bind)
+    
+    // JAXB (javax) dependencies
     implementation 'javax.xml.bind:jaxb-api:2.3.1'
     implementation 'com.sun.xml.bind:jaxb-core:2.3.0.1'
     implementation 'com.sun.xml.bind:jaxb-impl:2.3.6'
-
-    // JAX-WS dependencies
-    implementation 'com.sun.xml.ws:jaxws-rt:4.0.1'
-    implementation 'com.sun.xml.ws:rt:4.0.1'
-
-    // Required for Java 17 compatibility
+    
+    // CXF dependencies
+    implementation 'org.apache.cxf:cxf-rt-frontend-jaxws:4.0.3'
+    implementation 'org.apache.cxf:cxf-rt-transports-http:4.0.3'
+    
+    // Java 17 annotations
     implementation 'javax.annotation:javax.annotation-api:1.3.2'
-    implementation 'javax.jws:javax.jws-api:1.1'
-
-    // Test dependencies
+    
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
@@ -56,7 +55,7 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-// Ensure code generation happens before compilation
+// Ensure generation before compilation
 tasks.named('compileJava') {
     dependsOn wsdl2java
 }
