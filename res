@@ -2,7 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.3.7'
     id 'io.spring.dependency-management' version '1.1.5'
-    id 'no.nils.wsdl2java' version '0.12' // Updated plugin
+    id 'com.github.sherter.google-java-format' version '0.9' // Optional formatting
+    id 'org.apache.cxf.buildutils.cxf-codegen-plugin' version '4.0.3' // Official CXF plugin
 }
 
 group = 'com.example'
@@ -13,21 +14,27 @@ repositories {
     mavenCentral()
 }
 
-wsdl2java {
-    // New configuration format for Gradle 9
-    wsdlsToGenerate = [
-        ['-autoNameResolution', '-B-Xequals', '-B-XhashCode', 
-         "$projectDir/src/main/resources/wsdl/your-service.wsdl".toString()]
-    ]
-    generatedWsdlDir = file("${project.buildDir}/generated-sources/jaxb")
-    wsdlDir = file("$projectDir/src/main/resources/wsdl")
-    cxfVersion = "4.0.3" // CXF version compatible with javax
+// Configure CXF WSDL-to-Java generation
+cxf {
+    wsdl2java {
+        projectDir = file("$projectDir")
+        outputDir = file("${project.buildDir}/generated/sources/wsdl2java")
+        wsdl = file("src/main/resources/wsdl/your-service.wsdl")
+        extraArgs = [
+            '-autoNameResolution',
+            '-B-Xequals',
+            '-B-XhashCode',
+            '-fe', 'jaxws21', // Force JAX-WS 2.1 (javax.*)
+            '-b', 'src/main/resources/jaxb/bindings.xml' // Optional bindings
+        ]
+    }
 }
 
+// Add generated sources to compilation path
 sourceSets {
     main {
         java {
-            srcDirs += ["${project.buildDir}/generated-sources/jaxb"]
+            srcDirs += ["${project.buildDir}/generated/sources/wsdl2java"]
         }
     }
 }
@@ -55,7 +62,5 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-// Ensure generation before compilation
-tasks.named('compileJava') {
-    dependsOn wsdl2java
-}
+// Ensure code generation happens before compilation
+compileJava.dependsOn cxfWsdl2java
