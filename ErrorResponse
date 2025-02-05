@@ -1,0 +1,21 @@
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class ErrorResponse {
+    private int statusCode;
+    private String error;
+    private String message;
+    private String soapFault; // For SOAP errors
+    private List<FieldError> fieldErrors; // For validation errors
+    private Instant timestamp;
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class FieldError {
+        private String field;
+        private String message;
+        private Object rejectedValue;
+    }
+}
