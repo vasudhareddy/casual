@@ -1,91 +1,42 @@
-package com.example.config;
+package com.wellsfargo.opq.config;
 
-import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
-import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 
-import java.util.Map;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-class EdgeDataSourceConfigTest {
+class JaxbConfigTest {
 
     @InjectMocks
-    private EdgeDataSourceConfig edgeDataSourceConfig;
-
-    @Mock
-    private HikariDataSource mockDataSource;
-
-    @Mock
-    private LocalContainerEntityManagerFactoryBean mockEntityManagerFactory;
+    private JaxbConfig jaxbConfig;
 
     @BeforeEach
-    void setup() {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
-
-        // Mock configuration properties
-        edgeDataSourceConfig.username = "testuser";
-        edgeDataSourceConfig.password = "testpass";
-        edgeDataSourceConfig.url = "jdbc:h2:mem:testdb";
-        edgeDataSourceConfig.driver = "org.h2.Driver";
     }
 
     @Test
-    void testEdgeDataSource() {
-        HikariDataSource dataSource = edgeDataSourceConfig.edgeDataSource();
-
-        // Validate that the data source is configured correctly
-        assertNotNull(dataSource, "HikariDataSource should not be null");
-        assertEquals("testuser", dataSource.getUsername());
-        assertEquals("testpass", dataSource.getPassword());
-        assertEquals("jdbc:h2:mem:testdb", dataSource.getJdbcUrl());
-        assertEquals("org.h2.Driver", dataSource.getDriverClassName());
-        assertEquals(25, dataSource.getMaximumPoolSize());
-        assertEquals(10, dataSource.getMinimumIdle());
-    }
-
-    @Test
-    void testEdgeEntityManagerFactory() {
-        // Mock dependencies
-        when(mockDataSource.getJdbcUrl()).thenReturn("jdbc:h2:mem:testdb");
-
+    void testMarshaller() {
         // Call the method under test
-        LocalContainerEntityManagerFactoryBean factoryBean =
-                edgeDataSourceConfig.edgeEntityManagerFactory(mockDataSource);
+        Jaxb2Marshaller marshaller = jaxbConfig.marshaller();
 
-        // Verify the factory bean is configured correctly
-        assertNotNull(factoryBean, "EntityManagerFactoryBean should not be null");
-        assertEquals("edge", factoryBean.getPersistenceUnitName());
-        assertTrue(factoryBean.getJpaPropertyMap().containsKey("hibernate.dialect"));
-    }
+        // Verify that the bean is created
+        assertNotNull(marshaller, "Marshaller bean should not be null");
 
-    @Test
-    void testEdgeTransactionManager() {
-        // Mock the factory bean
-        when(mockEntityManagerFactory.getObject()).thenReturn(null);
+        // Verify that packagesToScan are set correctly
+        String[] packagesToScan = marshaller.getPackagesToScan();
+        assertNotNull(packagesToScan, "PackagesToScan should not be null");
+        assertNotNull(packagesToScan[0], "First package should not be null");
+        assertNotNull(packagesToScan[1], "Second package should not be null");
 
-        // Call the method under test
-        PlatformTransactionManager transactionManager =
-                edgeDataSourceConfig.edgeTransactionManager(mockEntityManagerFactory);
-
-        // Validate the transaction manager
-        assertNotNull(transactionManager, "TransactionManager should not be null");
-    }
-
-    @Test
-    void testJpaProperties() {
-        // Call the method under test
-        Map<String, Object> jpaProperties = edgeDataSourceConfig.jpaProperties();
-
-        // Validate JPA properties
-        assertNotNull(jpaProperties, "JPA properties should not be null");
-        assertTrue(jpaProperties.containsKey("hibernate.dialect"));
-        assertEquals("org.hibernate.dialect.OracleDialect", jpaProperties.get("hibernate.dialect"));
+        // Spy to verify internal method calls
+        Jaxb2Marshaller spiedMarshaller = spy(marshaller);
+        spiedMarshaller.setPackagesToScan(packagesToScan);
+        verify(spiedMarshaller).setPackagesToScan(packagesToScan);
     }
 }
