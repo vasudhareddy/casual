@@ -1,0 +1,17 @@
+
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(SoapServiceException.class)
+    public ResponseEntity<Map<String, String>> handleSoapServiceException(SoapServiceException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(Map.of("error", "SOAP Service Failure", "message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleGeneralException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Internal Server Error", "message", "An unexpected error occurred"));
+    }
+}
