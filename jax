@@ -1,43 +1,43 @@
 @Test
-void testSendSOAPRequest_Success() throws Exception {
-    // Arrange
-    LoanSearchMwsRequest requestObject = new LoanSearchMwsRequest();
-    LoanSearchResponse expectedResponse = mock(LoanSearchResponse.class); // ✅ Mocked object
-    String endpointUrl = "http://mock.url";
-    String authToken = "mockToken";
-    String soapAction = "mockAction";
+    void testSendSOAPRequest_Success() throws Exception {
+        // Arrange
+        LoanSearchMwsRequest requestObject = new LoanSearchMwsRequest();
+        LoanSearchResponse expectedResponse = mock(LoanSearchResponse.class);
+        String endpointUrl = "http://mock.url";
+        String authToken = "mockToken";
+        String soapAction = "mockAction";
 
-    // Mock SOAP message creation
-    when(mockSoapMessage.getSOAPBody()).thenReturn(mockSoapBody);
-    when(mockSaajSoapMessage.getSaajMessage()).thenReturn(mockSoapMessage);
+        // Mock SOAP response
+        when(mockSoapMessage.getSOAPBody()).thenReturn(mockSoapBody);
+        when(mockSaajSoapMessage.getSaajMessage()).thenReturn(mockSoapMessage);
+        when(mockSoapConnection.call(any(SOAPMessage.class), eq(endpointUrl))).thenReturn(mockSoapMessage);
 
-    // Mock SOAP call returning a response
-    when(mockSoapConnection.call(any(SOAPMessage.class), eq(endpointUrl)))
-            .thenReturn(mockSoapMessage);
+        // Mock JAXBContext and Unmarshaller (Static Method)
+        try (MockedStatic<JAXBContext> mockedJAXBContext = mockStatic(JAXBContext.class)) {
+            JAXBContext mockJAXBContext = mock(JAXBContext.class);
+            Unmarshaller mockUnmarshaller = mock(Unmarshaller.class);
 
-    // Mock JAXB conversion
-    JAXBContext mockJAXBContext = mock(JAXBContext.class);
-    Unmarshaller mockUnmarshaller = mock(Unmarshaller.class);
-    when(JAXBContext.newInstance(LoanSearchResponse.class)).thenReturn(mockJAXBContext);
-    when(mockJAXBContext.createUnmarshaller()).thenReturn(mockUnmarshaller);
+            mockedJAXBContext.when(() -> JAXBContext.newInstance(LoanSearchResponse.class)).thenReturn(mockJAXBContext);
+            when(mockJAXBContext.createUnmarshaller()).thenReturn(mockUnmarshaller);
 
-    // Correctly return JAXBElement<LoanSearchResponse>
-    JAXBElement<LoanSearchResponse> mockJAXBElement = mock(JAXBElement.class);
-    when(mockJAXBElement.getValue()).thenReturn(expectedResponse); // ✅ Ensure mock is used
-    when(mockUnmarshaller.unmarshal(any(), eq(LoanSearchResponse.class)))
-            .thenReturn(mockJAXBElement);
+            // Mock JAXBElement
+            JAXBElement<LoanSearchResponse> mockJAXBElement = mock(JAXBElement.class);
+            when(mockJAXBElement.getValue()).thenReturn(expectedResponse);
+            when(mockUnmarshaller.unmarshal(any(), eq(LoanSearchResponse.class))).thenReturn(mockJAXBElement);
 
-    // Act
-    LoanSearchResponse actualResponse = soapService.sendSOAPRequest(
-        requestObject,
-        LoanSearchMwsRequest.class,
-        LoanSearchResponse.class,
-        endpointUrl,
-        authToken,
-        soapAction
-    );
+            // Act
+            LoanSearchResponse actualResponse = soapService.sendSOAPRequest(
+                requestObject,
+                LoanSearchMwsRequest.class,
+                LoanSearchResponse.class,
+                endpointUrl,
+                authToken,
+                soapAction
+            );
 
-    // Assert
-    assertNotNull(actualResponse);
-    verify(mockSoapConnection, times(1)).call(any(SOAPMessage.class), eq(endpointUrl));
+            // Assert
+            assertNotNull(actualResponse);
+            verify(mockSoapConnection, times(1)).call(any(SOAPMessage.class), eq(endpointUrl));
+        }
+    }
 }
