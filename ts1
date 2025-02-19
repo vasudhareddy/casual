@@ -1,0 +1,173 @@
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.soap.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+
+@ExtendWith(MockitoExtension.class)
+public class SOAPServiceTest {
+
+    @InjectMocks
+    private SOAPService soapService;
+
+    @Mock
+    private SOAPMessage mockSoapMessage;
+
+    @Mock
+    private SaajSoapMessage mockSaajSoapMessage;
+
+    @Mock
+    private SOAPConnection mockSoapConnection;
+
+    @Mock
+    private SOAPConnectionFactory mockSoapConnectionFactory;
+
+    @Mock
+    private ByteArrayOutputStream mockOutputStream;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void testSendSOAPRequest_Success() throws Exception {
+        // Arrange
+        LoanSearchMwsRequest requestObject = new LoanSearchMwsRequest();
+        LoanSearchResponse expectedResponse = new LoanSearchResponse();
+        String endpointUrl = "http://mock.url";
+        String authToken = "mockToken";
+        String soapAction = "mockAction";
+
+        SOAPBody mockSoapBody = mock(SOAPBody.class);
+        when(mockSoapMessage.getSOAPBody()).thenReturn(mockSoapBody);
+
+        when(mockSoapConnection.call(any(SOAPMessage.class), eq(endpointUrl))).thenReturn(mockSoapMessage);
+
+        // Act
+        LoanSearchResponse actualResponse = soapService.sendSOAPRequest(
+            requestObject,
+            LoanSearchMwsRequest.class,
+            LoanSearchResponse.class, // Fix: Use LoanSearchResponse as expected
+            endpointUrl,
+            authToken,
+            soapAction
+        );
+
+        // Assert
+        assertNotNull(actualResponse);
+    }
+
+    @Test
+    void testSendSOAPRequest_SOAPException() throws Exception {
+        // Arrange
+        LoanSearchMwsRequest requestObject = new LoanSearchMwsRequest();
+        String endpointUrl = "http://mock.url";
+        String authToken = "mockToken";
+        String soapAction = "mockAction";
+
+        when(mockSoapConnection.call(any(SOAPMessage.class), eq(endpointUrl)))
+            .thenThrow(new SOAPException("SOAP Error"));
+
+        // Act & Assert
+        assertThrows(SoapServiceException.class, () ->
+            soapService.sendSOAPRequest(
+                requestObject,
+                LoanSearchMwsRequest.class,
+                LoanSearchResponse.class, // Fix: Use correct response type
+                endpointUrl,
+                authToken,
+                soapAction
+            )
+        );
+    }
+
+    @Test
+    void testCreateSOAPMessage_Success() throws Exception {
+        // Arrange
+        LoanSearchMwsRequest requestObject = new LoanSearchMwsRequest();
+        SOAPBody mockSoapBody = mock(SOAPBody.class);
+        when(mockSoapMessage.getSOAPBody()).thenReturn(mockSoapBody);
+
+        // Act
+        SOAPMessage result = soapService.createSOAPMessage(requestObject, LoanSearchMwsRequest.class);
+
+        // Assert
+        assertNotNull(result);
+    }
+
+    @Test
+    void testCreateSOAPMessage_JAXBException() throws Exception {
+        // Arrange
+        LoanSearchMwsRequest requestObject = new LoanSearchMwsRequest();
+
+        doThrow(new JAXBException("JAXB Error")).when(mockSoapMessage).getSOAPBody();
+
+        // Act & Assert
+        assertThrows(SoapServiceException.class, () ->
+            soapService.createSOAPMessage(requestObject, LoanSearchMwsRequest.class)
+        );
+    }
+
+    @Test
+    void testConvertSOAPToJAXB_Success() throws Exception {
+        // Arrange
+        LoanSearchResponse expectedResponse = new LoanSearchResponse();
+        SOAPBody mockSoapBody = mock(SOAPBody.class);
+        when(mockSoapMessage.getSOAPBody()).thenReturn(mockSoapBody);
+
+        // Act
+        LoanSearchResponse actualResponse = soapService.convertSOAPToJAXB(mockSoapMessage, LoanSearchResponse.class);
+
+        // Assert
+        assertNotNull(actualResponse);
+    }
+
+    @Test
+    void testConvertSOAPToJAXB_JAXBException() throws Exception {
+        // Arrange
+        SOAPMessage mockSoapMessage = mock(SOAPMessage.class);
+        when(mockSoapMessage.getSOAPBody()).thenThrow(new JAXBException("JAXB Parsing Error"));
+
+        // Act & Assert
+        assertThrows(SoapServiceException.class, () ->
+            soapService.convertSOAPToJAXB(mockSoapMessage, LoanSearchResponse.class)
+        );
+    }
+
+    @Test
+    void testGetSOAPMessageAsString_Success() throws Exception {
+        // Arrange
+        when(mockSoapMessage.writeTo(any(ByteArrayOutputStream.class))).thenAnswer(invocation -> {
+            ByteArrayOutputStream stream = invocation.getArgument(0);
+            stream.write("Mock SOAP Message".getBytes(StandardCharsets.UTF_8));
+            return null;
+        });
+
+        // Act
+        String result = soapService.getSOAPMessageAsString(mockSoapMessage);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals("Mock SOAP Message", result);
+    }
+
+    @Test
+    void testGetSOAPMessageAsString_Exception() throws Exception {
+        // Arrange
+        doThrow(new SOAPException("SOAP Write Error")).when(mockSoapMessage).writeTo(any(ByteArrayOutputStream.class));
+
+        // Act & Assert
+        assertThrows(SoapServiceException.class, () -> soapService.getSOAPMessageAsString(mockSoapMessage));
+    }
+}
