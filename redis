@@ -1,0 +1,46 @@
+package com.wellsfargo.opq.service;
+
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+import com.wellsfargo.opq.model.OpSessionData;
+
+import java.util.concurrent.TimeUnit;
+
+@Service
+public class RedisSessionService {
+
+    private final RedisTemplate<Object, Object> redisTemplate;
+    private final OpSessionData opSessionData; // Injected component
+
+    private static final int SESSION_TIMEOUT = 30; // Minutes
+
+    public RedisSessionService(RedisTemplate<Object, Object> redisTemplate, OpSessionData opSessionData) {
+        this.redisTemplate = redisTemplate;
+        this.opSessionData = opSessionData;
+    }
+
+    /**
+     * Store session data in Redis.
+     */
+    public void storeSessionData(String username) {
+        redisTemplate.opsForValue().set("SESSION:" + username, opSessionData, SESSION_TIMEOUT, TimeUnit.MINUTES);
+    }
+
+    /**
+     * Retrieve session data from Redis and inject it into `OpSessionData`.
+     */
+    public void loadSessionData(String username) {
+        OpSessionData storedData = (OpSessionData) redisTemplate.opsForValue().get("SESSION:" + username);
+        if (storedData != null) {
+            opSessionData.setCurrentLoanNumber(storedData.getCurrentLoanNumber());
+            opSessionData.setCurrentClientNumber(storedData.getCurrentClientNumber());
+        }
+    }
+
+    /**
+     * Clear session data from Redis.
+     */
+    public void clearSessionData(String username) {
+        redisTemplate.delete("SESSION:" + username);
+    }
+}
